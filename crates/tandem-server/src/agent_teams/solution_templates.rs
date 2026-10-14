@@ -19,7 +19,10 @@ use tandem_types::VerifiedTenantContext;
 use super::AgentTeamRuntime;
 
 impl AgentTeamRuntime {
-    pub(super) async fn require_unmanaged_template_destination(path: &Path) -> anyhow::Result<()> {
+    pub(super) async fn require_unmanaged_template_destination(
+        path: &Path,
+        template_id: &str,
+    ) -> anyhow::Result<()> {
         match tokio::fs::symlink_metadata(path).await {
             Ok(_) => (),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
@@ -39,6 +42,11 @@ impl AgentTeamRuntime {
                     .to_ascii_lowercase()
                     .starts_with("solution-"),
             "solution templates require the installation lifecycle"
+        );
+        // Distinct IDs can sanitize to the same filename.
+        ensure!(
+            existing.template_id == template_id,
+            "template destination belongs to another template"
         );
         Ok(())
     }

@@ -161,6 +161,31 @@ async fn generic_mutations_preserve_large_manual_template_crud() {
     assert!(!runtime.delete_template(workspace, "manual").await.unwrap());
 }
 
+#[tokio::test]
+async fn generic_mutations_keep_sanitized_filename_aliases_apart() {
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path().to_str().unwrap();
+    let runtime = AgentTeamRuntime::new(dir.path().join("audit"));
+    let mut dotted = fixture().0;
+    dotted.template_id = "reviewer.v2".into();
+    runtime
+        .upsert_template(workspace, dotted.clone())
+        .await
+        .unwrap();
+    let mut underscored = dotted.clone();
+    underscored.template_id = "reviewer_v2".into();
+    let upserted = runtime.upsert_template(workspace, underscored).await;
+    let deleted = runtime.delete_template(workspace, "reviewer_v2").await;
+    let restarted = AgentTeamRuntime::new(dir.path().join("restart-audit"));
+    assert!(restarted
+        .get_template_for_workspace(workspace, "reviewer.v2")
+        .await
+        .unwrap()
+        .is_some());
+    assert!(upserted.is_err());
+    assert!(deleted.is_err());
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn generic_mutations_follow_manual_symlinks_but_protect_managed_targets() {
